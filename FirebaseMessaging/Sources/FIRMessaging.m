@@ -125,6 +125,13 @@ BOOL FIRMessagingIsContextManagerMessage(NSDictionary *message) {
 
 @implementation FIRMessaging
 
++ (FIRMessaging *)messaging:(FIRApp *)app {
+    id<FIRMessagingInterop> instance = FIR_COMPONENT(FIRMessagingInterop, app.container);
+
+    // We know the instance coming from the container is a FIRMessaging instance, cast it and move on.
+    return (FIRMessaging *)instance;
+}
+
 + (FIRMessaging *)messaging {
   FIRApp *defaultApp = [FIRApp defaultApp];  // Missing configure will be logged here.
   id<FIRMessagingInterop> instance = FIR_COMPONENT(FIRMessagingInterop, defaultApp.container);

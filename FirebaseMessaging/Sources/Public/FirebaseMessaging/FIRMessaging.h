@@ -15,6 +15,7 @@
  */
 
 #import <Foundation/Foundation.h>
+#import "FirebaseCore/Sources/Private/FirebaseCoreInternal.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -170,6 +171,13 @@ NS_SWIFT_NAME(Messaging)
  * Delegate to handle FCM token refreshes, and remote data messages received via FCM direct channel.
  */
 @property(nonatomic, weak, nullable) id<FIRMessagingDelegate> delegate;
+
+/**
+ *  FIRMessaging
+ *  @param app The firebase instance that handle the message
+ *  @return An instance of FIRMessaging.
+ */
++ (instancetype)messaging: (FIRApp *) app NS_SWIFT_NAME(messaging(app:));
 
 /**
  *  FIRMessaging
