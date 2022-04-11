@@ -15,7 +15,6 @@
  */
 
 #import <Foundation/Foundation.h>
-#import "FirebaseCore/Sources/Public/FirebaseCore/FIRApp.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -177,7 +176,7 @@ NS_SWIFT_NAME(Messaging)
  *  @param app The firebase instance that handle the message
  *  @return An instance of FIRMessaging.
  */
-+ (instancetype)messaging: (FIRApp *) app NS_SWIFT_NAME(messaging(app:));
++ (instancetype)messaging: (NSString *)appName NS_SWIFT_NAME(messaging(appName:));
 
 /**
  *  FIRMessaging
