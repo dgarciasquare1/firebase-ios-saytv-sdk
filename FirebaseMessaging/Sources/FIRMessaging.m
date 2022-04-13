@@ -180,12 +180,12 @@ BOOL FIRMessagingIsContextManagerMessage(NSDictionary *message) {
                                                            isRequired:NO];
   FIRComponentCreationBlock creationBlock =
       ^id _Nullable(FIRComponentContainer *container, BOOL *isCacheable) {
-    if (!container.app.isDefaultApp) {
-      // Only start for the default FIRApp.
-      FIRMessagingLoggerDebug(kFIRMessagingMessageCodeFIRApp001,
-                              @"Firebase Messaging only works with the default app.");
-      return nil;
-    }
+//    if (!container.app.isDefaultApp) {
+//      // Only start for the default FIRApp.
+//      FIRMessagingLoggerDebug(kFIRMessagingMessageCodeFIRApp001,
+//                              @"Firebase Messaging only works with the default app.");
+//      return nil;
+//    }
 
     // Ensure it's cached so it returns the same instance every time messaging is called.
     *isCacheable = YES;
