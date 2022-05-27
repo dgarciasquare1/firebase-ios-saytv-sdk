@@ -400,12 +400,12 @@ void LocalStoreTest::ResetPersistenceStats() {
  * Asserts the expected numbers of documents read by the MutationQueue since the
  * last call to `ResetPersistenceStats()`.
  */
-#define FSTAssertMutationsRead(by_key, by_query)                   \
-  do {                                                             \
-    ASSERT_EQ(query_engine_.mutations_read_by_key(), (by_key))     \
-        << "Mutations read (by key)";                              \
-    ASSERT_EQ(query_engine_.mutations_read_by_query(), (by_query)) \
-        << "Mutations read (by query)";                            \
+#define FSTAssertOverlaysRead(by_key, by_query)                        \
+  do {                                                                 \
+    ASSERT_EQ(query_engine_.overlays_read_by_key(), (by_key))          \
+        << "Mutations read (by key)";                                  \
+    ASSERT_EQ(query_engine_.overlays_read_by_collection(), (by_query)) \
+        << "Mutations read (by query)";                                \
   } while (0)
 
 /**
@@ -579,7 +579,7 @@ TEST_P(LocalStoreTest, HandlesDocumentThenSetMutationThenAckThenDocument) {
 }
 
 TEST_P(LocalStoreTest, HandlesPatchWithoutPriorDocument) {
-  WriteMutation(testutil::PatchMutation("foo/bar", Map("foo", "bar"), {}));
+  WriteMutation(testutil::PatchMutation("foo/bar", Map("foo", "bar")));
   FSTAssertRemoved("foo/bar");
   FSTAssertNotContains("foo/bar");
 
@@ -593,7 +593,7 @@ TEST_P(LocalStoreTest, HandlesPatchWithoutPriorDocument) {
 }
 
 TEST_P(LocalStoreTest, HandlesPatchMutationThenDocumentThenAck) {
-  WriteMutation(testutil::PatchMutation("foo/bar", Map("foo", "bar"), {}));
+  WriteMutation(testutil::PatchMutation("foo/bar", Map("foo", "bar")));
   FSTAssertRemoved("foo/bar");
   FSTAssertNotContains("foo/bar");
 
@@ -623,7 +623,7 @@ TEST_P(LocalStoreTest, HandlesPatchMutationThenDocumentThenAck) {
 }
 
 TEST_P(LocalStoreTest, HandlesPatchMutationThenAckThenDocument) {
-  WriteMutation(testutil::PatchMutation("foo/bar", Map("foo", "bar"), {}));
+  WriteMutation(testutil::PatchMutation("foo/bar", Map("foo", "bar")));
   FSTAssertRemoved("foo/bar");
   FSTAssertNotContains("foo/bar");
 
@@ -649,7 +649,7 @@ TEST_P(LocalStoreTest, HandlesPatchMutationThenAckThenDocument) {
 TEST_P(LocalStoreTest, HandlesDeleteMutationThenAck) {
   WriteMutation(testutil::DeleteMutation("foo/bar"));
   FSTAssertRemoved("foo/bar");
-  FSTAssertContains(DeletedDoc("foo/bar"));
+  FSTAssertContains(DeletedDoc("foo/bar").SetHasLocalMutations());
 
   AcknowledgeMutationWithVersion(1);
   FSTAssertRemoved("foo/bar");
@@ -670,7 +670,7 @@ TEST_P(LocalStoreTest, HandlesDocumentThenDeleteMutationThenAck) {
 
   WriteMutation(testutil::DeleteMutation("foo/bar"));
   FSTAssertRemoved("foo/bar");
-  FSTAssertContains(DeletedDoc("foo/bar"));
+  FSTAssertContains(DeletedDoc("foo/bar").SetHasLocalMutations());
 
   // Remove the target so only the mutation is pinning the document
   local_store_.ReleaseTarget(target_id);
@@ -689,14 +689,14 @@ TEST_P(LocalStoreTest, HandlesDeleteMutationThenDocumentThenAck) {
 
   WriteMutation(testutil::DeleteMutation("foo/bar"));
   FSTAssertRemoved("foo/bar");
-  FSTAssertContains(DeletedDoc("foo/bar"));
+  FSTAssertContains(DeletedDoc("foo/bar").SetHasLocalMutations());
 
   // Add the document to a target so it will remain in persistence even when
   // ack'd
   ApplyRemoteEvent(
       UpdateRemoteEvent(Doc("foo/bar", 1, Map("it", "base")), {target_id}, {}));
   FSTAssertRemoved("foo/bar");
-  FSTAssertContains(DeletedDoc("foo/bar"));
+  FSTAssertContains(DeletedDoc("foo/bar").SetHasLocalMutations());
 
   // Don't need to keep it pinned anymore
   local_store_.ReleaseTarget(target_id);
@@ -739,7 +739,7 @@ TEST_P(LocalStoreTest,
   FSTAssertContains(
       Doc("foo/bar", 0, Map("foo", "old")).SetHasLocalMutations());
 
-  WriteMutation(testutil::PatchMutation("foo/bar", Map("foo", "bar"), {}));
+  WriteMutation(testutil::PatchMutation("foo/bar", Map("foo", "bar")));
   FSTAssertChanged(Doc("foo/bar", 0, Map("foo", "bar")).SetHasLocalMutations());
   FSTAssertContains(
       Doc("foo/bar", 0, Map("foo", "bar")).SetHasLocalMutations());
@@ -773,7 +773,7 @@ TEST_P(LocalStoreTest,
 
 TEST_P(LocalStoreTest, HandlesSetMutationAndPatchMutationTogether) {
   WriteMutations({testutil::SetMutation("foo/bar", Map("foo", "old")),
-                  testutil::PatchMutation("foo/bar", Map("foo", "bar"), {})});
+                  testutil::PatchMutation("foo/bar", Map("foo", "bar"))});
 
   FSTAssertChanged(Doc("foo/bar", 0, Map("foo", "bar")).SetHasLocalMutations());
   FSTAssertContains(
@@ -789,7 +789,7 @@ TEST_P(LocalStoreTest, HandlesSetMutationThenPatchMutationThenReject) {
   AcknowledgeMutationWithVersion(1);
   FSTAssertNotContains("foo/bar");
 
-  WriteMutation(testutil::PatchMutation("foo/bar", Map("foo", "bar"), {}));
+  WriteMutation(testutil::PatchMutation("foo/bar", Map("foo", "bar")));
   // A blind patch is not visible in the cache
   FSTAssertNotContains("foo/bar");
 
@@ -800,7 +800,7 @@ TEST_P(LocalStoreTest, HandlesSetMutationThenPatchMutationThenReject) {
 TEST_P(LocalStoreTest, HandlesSetMutationsAndPatchMutationOfJustOneTogether) {
   WriteMutations({testutil::SetMutation("foo/bar", Map("foo", "old")),
                   testutil::SetMutation("bar/baz", Map("bar", "baz")),
-                  testutil::PatchMutation("foo/bar", Map("foo", "bar"), {})});
+                  testutil::PatchMutation("foo/bar", Map("foo", "bar"))});
 
   FSTAssertChanged(Doc("bar/baz", 0, Map("bar", "baz")).SetHasLocalMutations(),
                    Doc("foo/bar", 0, Map("foo", "bar")).SetHasLocalMutations());
@@ -813,15 +813,15 @@ TEST_P(LocalStoreTest, HandlesSetMutationsAndPatchMutationOfJustOneTogether) {
 TEST_P(LocalStoreTest, HandlesDeleteMutationThenPatchMutationThenAckThenAck) {
   WriteMutation(testutil::DeleteMutation("foo/bar"));
   FSTAssertRemoved("foo/bar");
-  FSTAssertContains(DeletedDoc("foo/bar"));
+  FSTAssertContains(DeletedDoc("foo/bar").SetHasLocalMutations());
 
-  WriteMutation(testutil::PatchMutation("foo/bar", Map("foo", "bar"), {}));
+  WriteMutation(testutil::PatchMutation("foo/bar", Map("foo", "bar")));
   FSTAssertRemoved("foo/bar");
-  FSTAssertContains(DeletedDoc("foo/bar"));
+  FSTAssertContains(DeletedDoc("foo/bar").SetHasLocalMutations());
 
   AcknowledgeMutationWithVersion(2);  // delete mutation
   FSTAssertRemoved("foo/bar");
-  FSTAssertContains(DeletedDoc("foo/bar", 2).SetHasCommittedMutations());
+  FSTAssertContains(DeletedDoc("foo/bar", 0).SetHasLocalMutations());
 
   AcknowledgeMutationWithVersion(3);  // patch mutation
   FSTAssertChanged(UnknownDoc("foo/bar", 3));
@@ -869,7 +869,7 @@ TEST_P(LocalStoreTest, CollectsGarbageAfterAcknowledgedMutation) {
 
   ApplyRemoteEvent(
       UpdateRemoteEvent(Doc("foo/bar", 1, Map("foo", "old")), {target_id}, {}));
-  WriteMutation(testutil::PatchMutation("foo/bar", Map("foo", "bar"), {}));
+  WriteMutation(testutil::PatchMutation("foo/bar", Map("foo", "bar")));
   // Release the target so that our target count goes back to 0 and we are
   // considered up-to-date.
   local_store_.ReleaseTarget(target_id);
@@ -880,18 +880,18 @@ TEST_P(LocalStoreTest, CollectsGarbageAfterAcknowledgedMutation) {
       Doc("foo/bar", 1, Map("foo", "bar")).SetHasLocalMutations());
   FSTAssertContains(
       Doc("foo/bah", 0, Map("foo", "bah")).SetHasLocalMutations());
-  FSTAssertContains(DeletedDoc("foo/baz"));
+  FSTAssertContains(DeletedDoc("foo/baz").SetHasLocalMutations());
 
   AcknowledgeMutationWithVersion(3);
   FSTAssertNotContains("foo/bar");
   FSTAssertContains(
       Doc("foo/bah", 0, Map("foo", "bah")).SetHasLocalMutations());
-  FSTAssertContains(DeletedDoc("foo/baz"));
+  FSTAssertContains(DeletedDoc("foo/baz").SetHasLocalMutations());
 
   AcknowledgeMutationWithVersion(4);
   FSTAssertNotContains("foo/bar");
   FSTAssertNotContains("foo/bah");
-  FSTAssertContains(DeletedDoc("foo/baz"));
+  FSTAssertContains(DeletedDoc("foo/baz").SetHasLocalMutations());
 
   AcknowledgeMutationWithVersion(5);
   FSTAssertNotContains("foo/bar");
@@ -907,7 +907,7 @@ TEST_P(LocalStoreTest, CollectsGarbageAfterRejectedMutation) {
 
   ApplyRemoteEvent(
       UpdateRemoteEvent(Doc("foo/bar", 1, Map("foo", "old")), {target_id}, {}));
-  WriteMutation(testutil::PatchMutation("foo/bar", Map("foo", "bar"), {}));
+  WriteMutation(testutil::PatchMutation("foo/bar", Map("foo", "bar")));
   // Release the target so that our target count goes back to 0 and we are
   // considered up-to-date.
   local_store_.ReleaseTarget(target_id);
@@ -918,18 +918,18 @@ TEST_P(LocalStoreTest, CollectsGarbageAfterRejectedMutation) {
       Doc("foo/bar", 1, Map("foo", "bar")).SetHasLocalMutations());
   FSTAssertContains(
       Doc("foo/bah", 0, Map("foo", "bah")).SetHasLocalMutations());
-  FSTAssertContains(DeletedDoc("foo/baz"));
+  FSTAssertContains(DeletedDoc("foo/baz").SetHasLocalMutations());
 
   RejectMutation();  // patch mutation
   FSTAssertNotContains("foo/bar");
   FSTAssertContains(
       Doc("foo/bah", 0, Map("foo", "bah")).SetHasLocalMutations());
-  FSTAssertContains(DeletedDoc("foo/baz"));
+  FSTAssertContains(DeletedDoc("foo/baz").SetHasLocalMutations());
 
   RejectMutation();  // set mutation
   FSTAssertNotContains("foo/bar");
   FSTAssertNotContains("foo/bah");
-  FSTAssertContains(DeletedDoc("foo/baz"));
+  FSTAssertContains(DeletedDoc("foo/baz").SetHasLocalMutations());
 
   RejectMutation();  // delete mutation
   FSTAssertNotContains("foo/bar");
@@ -1045,7 +1045,7 @@ TEST_P(LocalStoreTest, ReadsAllDocumentsForInitialCollectionQueries) {
   ExecuteQuery(query);
 
   FSTAssertRemoteDocumentsRead(/* by_key= */ 0, /* by_query= */ 2);
-  FSTAssertMutationsRead(/* by_key= */ 0, /* by_query= */ 1);
+  FSTAssertOverlaysRead(/* by_key= */ 0, /* by_query= */ 1);
 }
 
 TEST_P(LocalStoreTest, PersistsResumeTokens) {
@@ -1404,7 +1404,7 @@ TEST_P(LocalStoreTest,
       Doc("foo/bar", 4, Map("sum", 1339)).SetHasCommittedMutations());
 }
 
-TEST_P(LocalStoreTest, HoldsBackOnlyNonIdempotentTransforms) {
+TEST_P(LocalStoreTest, HoldsBackTransforms) {
   core::Query query = Query("foo");
   AllocateQuery(query);
   FSTAssertTargetID(2);
@@ -1422,27 +1422,37 @@ TEST_P(LocalStoreTest, HoldsBackOnlyNonIdempotentTransforms) {
       Doc("foo/bar", 1, Map("sum", 0, "array_union", Array())), {2}));
   FSTAssertChanged(Doc("foo/bar", 1, Map("sum", 0, "array_union", Array())));
 
+  WriteMutation(testutil::PatchMutation(
+      "foo/bar", Map(), {testutil::Increment("sum", Value(1))}));
+  FSTAssertChanged(Doc("foo/bar", 1, Map("sum", 1, "array_union", Array()))
+                       .SetHasLocalMutations());
+
   std::vector<Message<google_firestore_v1_Value>> array_union;
   array_union.push_back(Value("foo"));
-  WriteMutations({
-      testutil::PatchMutation("foo/bar", Map(),
-                              {testutil::Increment("sum", Value(1))}),
-      testutil::PatchMutation(
-          "foo/bar", Map(), {testutil::ArrayUnion("array_union", array_union)}),
-  });
-
+  WriteMutation(testutil::PatchMutation(
+      "foo/bar", Map(), {testutil::ArrayUnion("array_union", array_union)}));
   FSTAssertChanged(Doc("foo/bar", 1, Map("sum", 1, "array_union", Array("foo")))
                        .SetHasLocalMutations());
 
-  // The sum transform is not idempotent and the backend's updated value is
-  // ignored. The ArrayUnion transform is recomputed and includes the backend
-  // value.
+  // The sum transform and array union transform make the SDK ignore the
+  // backend's updated value.
   ApplyRemoteEvent(UpdateRemoteEvent(
       Doc("foo/bar", 2, Map("sum", 1337, "array_union", Array("bar"))), {2},
       {}));
+  FSTAssertChanged(Doc("foo/bar", 2, Map("sum", 1, "array_union", Array("foo")))
+                       .SetHasLocalMutations());
+
+  // With a field transform acknowledgement, the overlay is recalculated with
+  // remaining local mutations.
+  AcknowledgeMutationWithVersion(3, Value(1338));
   FSTAssertChanged(
-      Doc("foo/bar", 2, Map("sum", 1, "array_union", Array("bar", "foo")))
+      Doc("foo/bar", 3, Map("sum", 1338, "array_union", Array("bar", "foo")))
           .SetHasLocalMutations());
+
+  AcknowledgeMutationWithVersion(4, Value("bar"));
+  FSTAssertChanged(
+      Doc("foo/bar", 4, Map("sum", 1338, "array_union", Array("bar", "foo")))
+          .SetHasCommittedMutations());
 }
 
 TEST_P(LocalStoreTest, HandlesMergeMutationWithTransformThenRemoteEvent) {
@@ -1670,7 +1680,7 @@ TEST_P(LocalStoreTest, GetHighestUnacknowledgeBatchId) {
   WriteMutation(testutil::SetMutation("foo/bar", Map("abc", 123)));
   ASSERT_EQ(1, local_store_.GetHighestUnacknowledgedBatchId());
 
-  WriteMutation(testutil::PatchMutation("foo/bar", Map("abc", 321), {}));
+  WriteMutation(testutil::PatchMutation("foo/bar", Map("abc", 321)));
   ASSERT_EQ(2, local_store_.GetHighestUnacknowledgedBatchId());
 
   AcknowledgeMutationWithVersion(1);
@@ -1696,6 +1706,101 @@ TEST_P(LocalStoreTest, OnlyPersistsUpdatesForDocumentsWhenVersionChanges) {
   FSTAssertContains(Doc("foo/bar", 1, Map("val", "old")));
   FSTAssertContains(Doc("foo/baz", 2, Map("val", "new")));
   FSTAssertChanged(Doc("foo/baz", 2, Map("val", "new")));
+}
+
+TEST_P(LocalStoreTest, CanHandleBatchAckWhenPendingBatchesHaveOtherDocs) {
+  // Prepare two batches, the first one will get rejected by the backend.
+  // When the first batch is rejected, overlay is recalculated with only the
+  // second batch, even though it has more documents than what is being
+  // rejected. See: https://github.com/firebase/firebase-android-sdk/issues/3490
+  WriteMutation(testutil::PatchMutation("foo/bar", Map("foo", "bar")));
+  WriteMutations({testutil::SetMutation("foo/bar", Map("foo", "bar-set")),
+                  testutil::SetMutation("foo/another", Map("foo", "another"))});
+
+  RejectMutation();
+  FSTAssertContains(
+      Doc("foo/bar", 0, Map("foo", "bar-set")).SetHasLocalMutations());
+  FSTAssertContains(
+      Doc("foo/another", 0, Map("foo", "another")).SetHasLocalMutations());
+}
+
+TEST_P(LocalStoreTest, MultipleFieldPatchesOnRemoteDocs) {
+  core::Query query = Query("foo");
+  AllocateQuery(query);
+  FSTAssertTargetID(2);
+
+  ApplyRemoteEvent(
+      AddedRemoteEvent(Doc("foo/bar", 1, Map("likes", 0, "stars", 0)), {2}));
+  FSTAssertChanged(Doc("foo/bar", 1, Map("likes", 0, "stars", 0)));
+  FSTAssertContains(Doc("foo/bar", 1, Map("likes", 0, "stars", 0)));
+
+  WriteMutation(testutil::PatchMutation("foo/bar", Map("likes", 1)));
+  FSTAssertChanged(
+      Doc("foo/bar", 1, Map("likes", 1, "stars", 0)).SetHasLocalMutations());
+  FSTAssertContains(
+      Doc("foo/bar", 1, Map("likes", 1, "stars", 0)).SetHasLocalMutations());
+
+  WriteMutation(testutil::PatchMutation("foo/bar", Map("stars", 1)));
+  FSTAssertChanged(
+      Doc("foo/bar", 1, Map("likes", 1, "stars", 1)).SetHasLocalMutations());
+  FSTAssertContains(
+      Doc("foo/bar", 1, Map("likes", 1, "stars", 1)).SetHasLocalMutations());
+
+  WriteMutation(testutil::PatchMutation("foo/bar", Map("stars", 2)));
+  FSTAssertChanged(
+      Doc("foo/bar", 1, Map("likes", 1, "stars", 2)).SetHasLocalMutations());
+  FSTAssertContains(
+      Doc("foo/bar", 1, Map("likes", 1, "stars", 2)).SetHasLocalMutations());
+}
+
+TEST_P(LocalStoreTest, MultipleFieldPatchesInOneBatchOnRemoteDocs) {
+  core::Query query = Query("foo");
+  AllocateQuery(query);
+  FSTAssertTargetID(2);
+
+  ApplyRemoteEvent(
+      AddedRemoteEvent(Doc("foo/bar", 1, Map("likes", 0, "stars", 0)), {2}));
+  FSTAssertChanged(Doc("foo/bar", 1, Map("likes", 0, "stars", 0)));
+  FSTAssertContains(Doc("foo/bar", 1, Map("likes", 0, "stars", 0)));
+
+  WriteMutations({testutil::PatchMutation("foo/bar", Map("likes", 1)),
+                  testutil::PatchMutation("foo/bar", Map("stars", 1))});
+  FSTAssertChanged(
+      Doc("foo/bar", 1, Map("likes", 1, "stars", 1)).SetHasLocalMutations());
+  FSTAssertContains(
+      Doc("foo/bar", 1, Map("likes", 1, "stars", 1)).SetHasLocalMutations());
+
+  WriteMutation(testutil::PatchMutation("foo/bar", Map("stars", 2)));
+  FSTAssertChanged(
+      Doc("foo/bar", 1, Map("likes", 1, "stars", 2)).SetHasLocalMutations());
+  FSTAssertContains(
+      Doc("foo/bar", 1, Map("likes", 1, "stars", 2)).SetHasLocalMutations());
+}
+
+TEST_P(LocalStoreTest, MultipleFieldPatchesOnLocalDocs) {
+  WriteMutation(testutil::SetMutation("foo/bar", Map("likes", 0, "stars", 0)));
+  FSTAssertChanged(
+      Doc("foo/bar", 0, Map("likes", 0, "stars", 0)).SetHasLocalMutations());
+  FSTAssertContains(
+      Doc("foo/bar", 0, Map("likes", 0, "stars", 0)).SetHasLocalMutations());
+
+  WriteMutation(testutil::PatchMutation("foo/bar", Map("likes", 1)));
+  FSTAssertChanged(
+      Doc("foo/bar", 0, Map("likes", 1, "stars", 0)).SetHasLocalMutations());
+  FSTAssertContains(
+      Doc("foo/bar", 0, Map("likes", 1, "stars", 0)).SetHasLocalMutations());
+
+  WriteMutation(testutil::PatchMutation("foo/bar", Map("stars", 1)));
+  FSTAssertChanged(
+      Doc("foo/bar", 0, Map("likes", 1, "stars", 1)).SetHasLocalMutations());
+  FSTAssertContains(
+      Doc("foo/bar", 0, Map("likes", 1, "stars", 1)).SetHasLocalMutations());
+
+  WriteMutation(testutil::PatchMutation("foo/bar", Map("stars", 2)));
+  FSTAssertChanged(
+      Doc("foo/bar", 0, Map("likes", 1, "stars", 2)).SetHasLocalMutations());
+  FSTAssertContains(
+      Doc("foo/bar", 0, Map("likes", 1, "stars", 2)).SetHasLocalMutations());
 }
 
 }  // namespace local

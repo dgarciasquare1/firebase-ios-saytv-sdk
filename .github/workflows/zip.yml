@@ -20,18 +20,25 @@ on:
         required: true
         default: 'https://github.com/firebase/SpecsStaging.git'
 
+concurrency:
+    group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+    cancel-in-progress: true
+
 jobs:
   package-release:
     # Don't run on private repo.
     if: (github.repository == 'Firebase/firebase-ios-sdk' && github.event_name == 'schedule') || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
-    runs-on: macOS-10.15
+    runs-on: macos-12
     steps:
     - uses: actions/checkout@v2
     - uses: mikehardy/buildcache-action@50738c6c77de7f34e66b870e4f8ede333b69d077
       with:
         cache_key: ${{ matrix.os }}
-    - name: Xcode 12.2
-      run: sudo xcode-select -s /Applications/Xcode_12.2.app/Contents/Developer
+    - name: Xcode 13.3.1
+      run: sudo xcode-select -s /Applications/Xcode_13.3.1.app/Contents/Developer
+    - uses: ruby/setup-ruby@359bebbc29cbe6c87da6bc9ea3bc930432750108
+      with:
+        ruby-version: '2.7'
     - name: Setup Bundler
       run: ./scripts/setup_bundler.sh
     - name: ZipBuildingTest
@@ -46,15 +53,14 @@ jobs:
         # name of.
         path: release_zip_dir
 
-
   build:
     # Don't run on private repo unless it is a PR.
     if: (github.repository == 'Firebase/firebase-ios-sdk' && github.event_name == 'schedule') || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
-    runs-on: macOS-10.15
+    runs-on: macos-12
     steps:
     - uses: actions/checkout@v2
-    - name: Xcode 12.2
-      run: sudo xcode-select -s /Applications/Xcode_12.2.app/Contents/Developer
+    - name: Xcode 13.3.1
+      run: sudo xcode-select -s /Applications/Xcode_13.3.1.app/Contents/Developer
     - name: Build
       run: |
         cd ReleaseTooling
@@ -64,14 +70,17 @@ jobs:
     # Don't run on private repo.
     if: (github.repository == 'Firebase/firebase-ios-sdk' && github.event_name == 'schedule') || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     needs: build
-    runs-on: macOS-10.15
+    runs-on: macos-12
     steps:
     - uses: actions/checkout@v2
     - uses: mikehardy/buildcache-action@50738c6c77de7f34e66b870e4f8ede333b69d077
       with:
         cache_key: ${{ matrix.os }}
-    - name: Xcode 12.2
-      run: sudo xcode-select -s /Applications/Xcode_12.2.app/Contents/Developer
+    - name: Xcode 13.3.1
+      run: sudo xcode-select -s /Applications/Xcode_13.3.1.app/Contents/Developer
+    - uses: ruby/setup-ruby@359bebbc29cbe6c87da6bc9ea3bc930432750108
+      with:
+        ruby-version: '2.7'
     - name: Setup Bundler
       run: ./scripts/setup_bundler.sh
     - name: ZipBuildingTest
@@ -96,23 +105,30 @@ jobs:
       signin_secret: ${{ secrets.GHASecretsGPGPassphrase1 }}
       FRAMEWORK_DIR: "Firebase-actions-dir"
       SDK: "ABTesting"
-    runs-on: macOS-10.15
+    runs-on: macos-12
     steps:
     - uses: actions/checkout@v2
     - name: Get framework dir
       uses: actions/download-artifact@v1
       with:
         name: Firebase-actions-dir
+    - uses: ruby/setup-ruby@359bebbc29cbe6c87da6bc9ea3bc930432750108
+      with:
+        ruby-version: '2.7'
+    - name: Setup Bundler
+      run: ./scripts/setup_bundler.sh
     - name: Move frameworks
       run: |
         mkdir -p "${HOME}"/ios_frameworks/
         find "${GITHUB_WORKSPACE}/${FRAMEWORK_DIR}" -name "Firebase*latest.zip" -exec unzip -d "${HOME}"/ios_frameworks/ {} +
+    - uses: actions/checkout@v2
     - name: Setup quickstart
       env:
         LEGACY: true
       run: SAMPLE="$SDK" TARGET="${SDK}Example" scripts/setup_quickstart_framework.sh \
                                                "${HOME}"/ios_frameworks/Firebase/FirebaseRemoteConfig/* \
                                                "${HOME}"/ios_frameworks/Firebase/FirebaseAnalytics/FirebaseCore.xcframework \
+                                               "${HOME}"/ios_frameworks/Firebase/FirebaseAnalytics/FirebaseCoreInternal.xcframework \
                                                "${HOME}"/ios_frameworks/Firebase/FirebaseAnalytics/PromisesObjC.xcframework \
                                                "${HOME}"/ios_frameworks/Firebase/FirebaseAnalytics/FirebaseInstallations.xcframework \
                                                "${HOME}"/ios_frameworks/Firebase/FirebaseAnalytics/GoogleUtilities.xcframework
@@ -143,16 +159,18 @@ jobs:
       signin_secret: ${{ secrets.GHASecretsGPGPassphrase1 }}
       FRAMEWORK_DIR: "Firebase-actions-dir"
       SDK:  "Authentication"
-    runs-on: macos-11
+    runs-on: macos-12
     steps:
     - uses: actions/checkout@v2
-      # Facebook SDK 12.0.1 requires Xcode 13
-    - name: Xcode 13.0
-      run: sudo xcode-select -s /Applications/Xcode_13.0.app/Contents/Developer
     - name: Get framework dir
       uses: actions/download-artifact@v1
       with:
         name: Firebase-actions-dir
+    - uses: ruby/setup-ruby@359bebbc29cbe6c87da6bc9ea3bc930432750108
+      with:
+        ruby-version: '2.7'
+    - name: Setup Bundler
+      run: ./scripts/setup_bundler.sh
     - name: Move frameworks
       run: |
         mkdir -p "${HOME}"/ios_frameworks/
@@ -187,23 +205,27 @@ jobs:
       signin_secret: ${{ secrets.GHASecretsGPGPassphrase1 }}
       FRAMEWORK_DIR: "Firebase-actions-dir"
       SDK: "Config"
-    runs-on: macOS-10.15
+    runs-on: macos-12
     steps:
     - uses: actions/checkout@v2
     - name: Get framework dir
       uses: actions/download-artifact@v1
       with:
         name: Firebase-actions-dir
+    - uses: ruby/setup-ruby@359bebbc29cbe6c87da6bc9ea3bc930432750108
+      with:
+        ruby-version: '2.7'
+    - name: Setup Bundler
+      run: ./scripts/setup_bundler.sh
     - name: Move frameworks
       run: |
         mkdir -p "${HOME}"/ios_frameworks/
         find "${GITHUB_WORKSPACE}/${FRAMEWORK_DIR}" -name "Firebase*latest.zip" -exec unzip -d "${HOME}"/ios_frameworks/ {} +
     - name: Setup Swift Quickstart
 
-      run: SAMPLE="$SDK" TARGET="${SDK}Example" NON_FIREBASE_SDKS="FirebaseRemoteConfigSwift FirebaseSharedSwift" scripts/setup_quickstart_framework.sh \
+      run: SAMPLE="$SDK" TARGET="${SDK}Example" scripts/setup_quickstart_framework.sh \
                                                "${HOME}"/ios_frameworks/Firebase/FirebaseRemoteConfig/* \
-                                               "${HOME}"/ios_frameworks/Firebase/FirebaseAnalytics/* \
-                                               "${HOME}"/ios_frameworks/Firebase/NonFirebaseSDKs/*
+                                               "${HOME}"/ios_frameworks/Firebase/FirebaseAnalytics/*
     - name: Install Secret GoogleService-Info.plist
       run: scripts/decrypt_gha_secret.sh scripts/gha-encrypted/qs-config.plist.gpg \
         quickstart-ios/config/GoogleService-Info.plist "$plist_secret"
@@ -227,17 +249,23 @@ jobs:
       signin_secret: ${{ secrets.GHASecretsGPGPassphrase1 }}
       FRAMEWORK_DIR: "Firebase-actions-dir"
       SDK: "Crashlytics"
-    runs-on: macOS-10.15
+    runs-on: macos-12
     steps:
     - uses: actions/checkout@v2
     - name: Get framework dir
       uses: actions/download-artifact@v1
       with:
         name: Firebase-actions-dir
+    - uses: ruby/setup-ruby@359bebbc29cbe6c87da6bc9ea3bc930432750108
+      with:
+        ruby-version: '2.7'
+    - name: Setup Bundler
+      run: ./scripts/setup_bundler.sh
     - name: Move frameworks
       run: |
         mkdir -p "${HOME}"/ios_frameworks/
         find "${GITHUB_WORKSPACE}/${FRAMEWORK_DIR}" -name "Firebase*latest.zip" -exec unzip -d "${HOME}"/ios_frameworks/ {} +
+    - uses: actions/checkout@v2
     - name: Setup quickstart
       env:
         LEGACY: true
@@ -251,6 +279,8 @@ jobs:
               chmod +x quickstart-ios/crashlytics/LegacyCrashlyticsQuickstart/upload-symbols
     # TODO(#8057): Restore Swift Quickstart
     # - name: Setup swift quickstart
+    #   env:
+    #     LEGACY: true
     #   run: |
     #           SAMPLE="$SDK" TARGET="${SDK}ExampleSwift" NON_FIREBASE_SDKS="ReachabilitySwift" scripts/setup_quickstart_framework.sh \
     #                                            "${HOME}"/ios_frameworks/Firebase/NonFirebaseSDKs/*
@@ -261,7 +291,10 @@ jobs:
       env:
         LEGACY: true
       run: ([ -z $plist_secret ] || scripts/third_party/travis/retry.sh scripts/test_quickstart_framework.sh "${SDK}")
+    # TODO(#8057): Restore Swift Quickstart
     # - name: Test Swift Quickstart
+    #   env:
+    #     LEGACY: true
     #   run: ([ -z $plist_secret ] || scripts/third_party/travis/retry.sh scripts/test_quickstart_framework.sh "${SDK}" swift)
     - name: Remove data before upload
       env:
@@ -283,17 +316,23 @@ jobs:
       signin_secret: ${{ secrets.GHASecretsGPGPassphrase1 }}
       FRAMEWORK_DIR: "Firebase-actions-dir"
       SDK: "Database"
-    runs-on: macOS-10.15
+    runs-on: macos-12
     steps:
     - uses: actions/checkout@v2
     - name: Get framework dir
       uses: actions/download-artifact@v1
       with:
         name: Firebase-actions-dir
+    - uses: ruby/setup-ruby@359bebbc29cbe6c87da6bc9ea3bc930432750108
+      with:
+        ruby-version: '2.7'
+    - name: Setup Bundler
+      run: ./scripts/setup_bundler.sh
     - name: Move frameworks
       run: |
         mkdir -p "${HOME}"/ios_frameworks/
         find "${GITHUB_WORKSPACE}/${FRAMEWORK_DIR}" -name "Firebase*latest.zip" -exec unzip -d "${HOME}"/ios_frameworks/ {} +
+    - uses: actions/checkout@v2
     - name: Setup quickstart
       run: SAMPLE="$SDK" TARGET="${SDK}Example" NON_FIREBASE_SDKS="FirebaseDatabaseUI" scripts/setup_quickstart_framework.sh \
                                                "${HOME}"/ios_frameworks/Firebase/FirebaseDatabase/* \
@@ -325,13 +364,18 @@ jobs:
       signin_secret: ${{ secrets.GHASecretsGPGPassphrase1 }}
       FRAMEWORK_DIR: "Firebase-actions-dir"
       SDK: "DynamicLinks"
-    runs-on: macOS-10.15
+    runs-on: macos-12
     steps:
     - uses: actions/checkout@v2
     - name: Get framework dir
       uses: actions/download-artifact@v1
       with:
         name: Firebase-actions-dir
+    - uses: ruby/setup-ruby@359bebbc29cbe6c87da6bc9ea3bc930432750108
+      with:
+        ruby-version: '2.7'
+    - name: Setup Bundler
+      run: ./scripts/setup_bundler.sh
     - name: Move frameworks
       run: |
         mkdir -p "${HOME}"/ios_frameworks/
@@ -372,19 +416,25 @@ jobs:
       signin_secret: ${{ secrets.GHASecretsGPGPassphrase1 }}
       FRAMEWORK_DIR: "Firebase-actions-dir"
       SDK: "Firestore"
-    runs-on: macOS-10.15
+    runs-on: macos-12
     steps:
     - uses: actions/checkout@v2
     - name: Get framework dir
       uses: actions/download-artifact@v1
       with:
         name: Firebase-actions-dir
+    - uses: ruby/setup-ruby@359bebbc29cbe6c87da6bc9ea3bc930432750108
+      with:
+        ruby-version: '2.7'
+    - name: Setup Bundler
+      run: ./scripts/setup_bundler.sh
     - name: Move frameworks
       run: |
         mkdir -p "${HOME}"/ios_frameworks/
         find "${GITHUB_WORKSPACE}/${FRAMEWORK_DIR}" -name "Firebase*latest.zip" -exec unzip -d "${HOME}"/ios_frameworks/ {} +
+    - uses: actions/checkout@v2
     - name: Setup quickstart
-      run: SAMPLE="$SDK" TARGET="${SDK}Example" NON_FIREBASE_SDKS="SDWebImage FirebaseAuthUI FirebaseEmailAuthUI FirebaseFirestoreSwift" scripts/setup_quickstart_framework.sh \
+      run: SAMPLE="$SDK" TARGET="${SDK}Example" NON_FIREBASE_SDKS="SDWebImage FirebaseAuthUI FirebaseEmailAuthUI" scripts/setup_quickstart_framework.sh \
                                                "${HOME}"/ios_frameworks/Firebase/NonFirebaseSDKs/* \
                                                "${HOME}"/ios_frameworks/Firebase/FirebaseFirestore/* \
                                                "${HOME}"/ios_frameworks/Firebase/FirebaseAuth/* \
@@ -412,17 +462,23 @@ jobs:
       signin_secret: ${{ secrets.GHASecretsGPGPassphrase1 }}
       FRAMEWORK_DIR: "Firebase-actions-dir"
       SDK: "InAppMessaging"
-    runs-on: macOS-10.15
+    runs-on: macos-12
     steps:
     - uses: actions/checkout@v2
     - name: Get framework dir
       uses: actions/download-artifact@v1
       with:
         name: Firebase-actions-dir
+    - uses: ruby/setup-ruby@359bebbc29cbe6c87da6bc9ea3bc930432750108
+      with:
+        ruby-version: '2.7'
+    - name: Setup Bundler
+      run: ./scripts/setup_bundler.sh
     - name: Move frameworks
       run: |
         mkdir -p "${HOME}"/ios_frameworks/
         find "${GITHUB_WORKSPACE}/${FRAMEWORK_DIR}" -name "Firebase*latest.zip" -exec unzip -d "${HOME}"/ios_frameworks/ {} +
+    - uses: actions/checkout@v2
     - name: Setup quickstart
       run: SAMPLE="$SDK" TARGET="${SDK}Example" scripts/setup_quickstart_framework.sh \
                                                "${HOME}"/ios_frameworks/Firebase/FirebaseDynamicLinks/* \
@@ -455,17 +511,23 @@ jobs:
       signin_secret: ${{ secrets.GHASecretsGPGPassphrase1 }}
       FRAMEWORK_DIR: "Firebase-actions-dir"
       SDK: "Messaging"
-    runs-on: macOS-10.15
+    runs-on: macos-12
     steps:
     - uses: actions/checkout@v2
     - name: Get framework dir
       uses: actions/download-artifact@v1
       with:
         name: Firebase-actions-dir
+    - uses: ruby/setup-ruby@359bebbc29cbe6c87da6bc9ea3bc930432750108
+      with:
+        ruby-version: '2.7'
+    - name: Setup Bundler
+      run: ./scripts/setup_bundler.sh
     - name: Move frameworks
       run: |
         mkdir -p "${HOME}"/ios_frameworks/
         find "${GITHUB_WORKSPACE}/${FRAMEWORK_DIR}" -name "Firebase*latest.zip" -exec unzip -d "${HOME}"/ios_frameworks/ {} +
+    - uses: actions/checkout@v2
     - name: Setup quickstart
       run: SAMPLE="$SDK" TARGET="${SDK}Example" scripts/setup_quickstart_framework.sh \
                                                "${HOME}"/ios_frameworks/Firebase/FirebaseMessaging/* \
@@ -497,33 +559,48 @@ jobs:
       signin_secret: ${{ secrets.GHASecretsGPGPassphrase1 }}
       FRAMEWORK_DIR: "Firebase-actions-dir"
       SDK: "Storage"
-    runs-on: macOS-10.15
+    runs-on: macos-12
     steps:
     - uses: actions/checkout@v2
     - name: Get framework dir
       uses: actions/download-artifact@v1
       with:
         name: Firebase-actions-dir
+    - uses: ruby/setup-ruby@359bebbc29cbe6c87da6bc9ea3bc930432750108
+      with:
+        ruby-version: '2.7'
+    - name: Setup Bundler
+      run: ./scripts/setup_bundler.sh
     - name: Move frameworks
       run: |
         mkdir -p "${HOME}"/ios_frameworks/
         find "${GITHUB_WORKSPACE}/${FRAMEWORK_DIR}" -name "Firebase*latest.zip" -exec unzip -d "${HOME}"/ios_frameworks/ {} +
+    - uses: actions/checkout@v2
     - name: Setup quickstart
+      env:
+        LEGACY: true
       run: SAMPLE="$SDK" TARGET="${SDK}Example" scripts/setup_quickstart_framework.sh \
                                                "${HOME}"/ios_frameworks/Firebase/FirebaseStorage/* \
                                                "${HOME}"/ios_frameworks/Firebase/FirebaseAuth/* \
                                                "${HOME}"/ios_frameworks/Firebase/FirebaseAnalytics/*
     - name: Setup swift quickstart
-      run: SAMPLE="$SDK" TARGET="${SDK}ExampleSwift" NON_FIREBASE_SDKS="FirebaseStorageSwift" scripts/setup_quickstart_framework.sh \
-                                               "${HOME}"/ios_frameworks/Firebase/NonFirebaseSDKs/*
+      env:
+        LEGACY: true
+      run: SAMPLE="$SDK" TARGET="${SDK}ExampleSwift" scripts/setup_quickstart_framework.sh
     - name: Install Secret GoogleService-Info.plist
       run: scripts/decrypt_gha_secret.sh scripts/gha-encrypted/qs-storage.plist.gpg \
         quickstart-ios/storage/GoogleService-Info.plist "$plist_secret"
     - name: Test Quickstart
+      env:
+        LEGACY: true
       run: ([ -z $plist_secret ] || scripts/third_party/travis/retry.sh scripts/test_quickstart_framework.sh "${SDK}")
     - name: Test Swift Quickstart
+      env:
+        LEGACY: true
       run: ([ -z $plist_secret ] || scripts/third_party/travis/retry.sh scripts/test_quickstart_framework.sh "${SDK}" swift)
     - name: Remove data before upload
+      env:
+        LEGACY: true
       if: ${{ failure() }}
       run: scripts/remove_data.sh storage
     - uses: actions/upload-artifact@v2

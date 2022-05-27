@@ -72,7 +72,6 @@ option(
   ON
 )
 
-
 list(INSERT CMAKE_MODULE_PATH 0 ${PROJECT_SOURCE_DIR}/cmake)
 include(compiler_setup)
 include(sanitizer_options)
@@ -174,6 +173,13 @@ else()
   set(ZLIB_ROOT_DIR ${FIREBASE_EXTERNAL_SOURCE_DIR}/zlib)
 endif()
 
+find_package(re2 QUIET)
+if(RE2_FOUND)
+  set(gRPC_RE2_PROVIDER package CACHE STRING "Use external re2")
+else()
+  set(RE2_ROOT_DIR ${FIREBASE_EXTERNAL_SOURCE_DIR}/re2)
+endif()
+
 set(gRPC_BUILD_TESTS OFF CACHE BOOL "Disable gRPC tests")
 set(gRPC_BUILD_CODEGEN OFF CACHE BOOL "Disable gRPC codegen")
 set(gRPC_BUILD_CSHARP_EXT OFF CACHE BOOL "Disable gRPC C# extensions")
@@ -227,6 +233,12 @@ if(NOT ZLIB_FOUND)
 endif()
 
 
+# Snappy
+set(SNAPPY_BUILD_TESTS OFF CACHE BOOL "Firestore disabled")
+set(SNAPPY_BUILD_BENCHMARKS OFF CACHE BOOL "Firestore disabled")
+add_external_subdirectory(snappy)
+firebase_ios_add_alias(Snappy::Snappy snappy)
+
 # LevelDB
 set(LEVELDB_BUILD_TESTS OFF CACHE BOOL "Firestore disabled")
 set(LEVELDB_BUILD_BENCHMARKS OFF CACHE BOOL "Firestore disabled")
@@ -261,8 +273,8 @@ if(FIREBASE_IOS_BUILD_TESTS)
   enable_testing()
 endif()
 
-add_subdirectory(FirebaseAppCheck/Sources/Interop/)
+add_subdirectory(FirebaseAppCheck/Interop)
 add_subdirectory(FirebaseCore)
 add_subdirectory(Firestore)
-add_subdirectory(Interop/Auth)
+add_subdirectory(FirebaseAuth/Interop)
 add_subdirectory(Interop/CoreDiagnostics)

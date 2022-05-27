@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name                    = 'FirebaseDatabaseSwift'
-  s.version                 = '8.14.0-beta'
+  s.version                 = '9.1.0'
   s.summary                 = 'Swift Extensions for Firebase Realtime Database'
 
   s.description      = <<-DESC
@@ -8,7 +8,7 @@ Simplify your iOS development, grow your user base, and monetize more effectivel
                        DESC
 
   s.homepage                = 'https://developers.google.com/'
-  s.license                 = { :type => 'Apache', :file => 'LICENSE' }
+  s.license                 = { :type => 'Apache-2.0', :file => 'LICENSE' }
   s.authors                 = 'Google, Inc.'
 
   s.source                  = {
@@ -28,6 +28,6 @@ Simplify your iOS development, grow your user base, and monetize more effectivel
     'FirebaseDatabaseSwift/Sources/**/*.swift',
   ]
 
-  s.dependency 'FirebaseDatabase', '~> 8.0'
-  s.dependency 'FirebaseSharedSwift', '~> 8.11'
+  s.dependency 'FirebaseDatabase', '~> 9.0'
+  s.dependency 'FirebaseSharedSwift', '~> 9.0'
 end

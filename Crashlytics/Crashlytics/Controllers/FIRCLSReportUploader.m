@@ -23,6 +23,7 @@
 #import "Crashlytics/Crashlytics/Models/FIRCLSFileManager.h"
 #import "Crashlytics/Crashlytics/Models/FIRCLSInstallIdentifierModel.h"
 #import "Crashlytics/Crashlytics/Models/FIRCLSInternalReport.h"
+#import "Crashlytics/Crashlytics/Models/FIRCLSSettings.h"
 #import "Crashlytics/Crashlytics/Models/FIRCLSSymbolResolver.h"
 #import "Crashlytics/Crashlytics/Models/Record/FIRCLSReportAdapter.h"
 #import "Crashlytics/Crashlytics/Operations/Reports/FIRCLSProcessReportOperation.h"
@@ -190,12 +191,14 @@
            if (!wasWritten) {
              FIRCLSErrorLog(
                  @"Failed to send crash report due to failure writing GoogleDataTransport event");
+             dispatch_semaphore_signal(semaphore);
              return;
            }
 
            if (error) {
              FIRCLSErrorLog(@"Failed to send crash report due to GoogleDataTransport error: %@",
                             error.localizedDescription);
+             dispatch_semaphore_signal(semaphore);
              return;
            }
 

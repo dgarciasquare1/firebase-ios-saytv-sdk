@@ -21,6 +21,7 @@
 #include <utility>
 #include <vector>
 
+#include "Firestore/core/src/local/document_overlay_cache.h"
 #include "Firestore/core/src/local/mutation_queue.h"
 #include "Firestore/core/src/local/query_engine.h"
 #include "Firestore/core/src/local/remote_document_cache.h"
@@ -37,6 +38,7 @@ class Query;
 namespace local {
 
 class LocalDocumentsView;
+class WrappedDocumentOverlayCache;
 class WrappedMutationQueue;
 class WrappedRemoteDocumentCache;
 
@@ -56,7 +58,7 @@ class CountingQueryEngine : public QueryEngine {
 
   /**
    * Returns the number of documents returned by the RemoteDocumentCache's
-   * `GetMatching()` API (since the last call to `ResetCounts()`)
+   * `GetAll()` API (since the last call to `ResetCounts()`)
    */
   size_t documents_read_by_query() const {
     return documents_read_by_query_;
@@ -71,12 +73,10 @@ class CountingQueryEngine : public QueryEngine {
   }
 
   /**
-   * Returns the number of mutations returned by the MutationQueue's
-   * `getAllMutationBatchesAffectingQuery()` API (since the last call to
-   * `ResetCounts()`)
+   * Returns the number of overlays returned by the DocumentOverlayCache.
    */
-  size_t mutations_read_by_query() const {
-    return mutations_read_by_query_;
+  size_t overlays_read_by_collection() const {
+    return overlays_read_by_collection_;
   }
 
   /**
@@ -85,22 +85,27 @@ class CountingQueryEngine : public QueryEngine {
    * `AllMutationBatchesAffectingDocumentKeys()` APIs (since the last call to
    * `ResetCounts()`)
    */
-  size_t mutations_read_by_key() const {
-    return mutations_read_by_key_;
+  size_t overlays_read_by_key() const {
+    return overlays_read_by_key_;
   }
 
  private:
+  friend class WrappedDocumentOverlayCache;
   friend class WrappedMutationQueue;
   friend class WrappedRemoteDocumentCache;
 
   std::unique_ptr<LocalDocumentsView> local_documents_;
   std::unique_ptr<WrappedMutationQueue> mutation_queue_;
+  std::unique_ptr<WrappedDocumentOverlayCache> document_overlay_cache_;
   std::unique_ptr<WrappedRemoteDocumentCache> remote_documents_;
 
   size_t mutations_read_by_query_ = 0;
   size_t mutations_read_by_key_ = 0;
   size_t documents_read_by_query_ = 0;
   size_t documents_read_by_key_ = 0;
+  size_t overlays_read_by_key_ = 0;
+  size_t overlays_read_by_collection_ = 0;
+  size_t overlays_read_by_collection_group_ = 0;
 };
 
 /** A MutationQueue that counts document reads. */
@@ -172,9 +177,8 @@ class WrappedRemoteDocumentCache : public RemoteDocumentCache {
 
   model::MutableDocumentMap GetAll(const model::DocumentKeySet& keys) override;
 
-  model::MutableDocumentMap GetMatching(
-      const core::Query& query,
-      const model::SnapshotVersion& since_read_time) override;
+  model::MutableDocumentMap GetAll(const model::ResourcePath& path,
+                                   const model::IndexOffset& offset) override;
 
   void SetIndexManager(IndexManager* manager) override {
     index_manager_ = NOT_NULL(manager);
@@ -183,6 +187,36 @@ class WrappedRemoteDocumentCache : public RemoteDocumentCache {
  private:
   RemoteDocumentCache* subject_ = nullptr;
   IndexManager* index_manager_ = nullptr;
+  CountingQueryEngine* query_engine_ = nullptr;
+};
+
+/** A DocumentOverlayCache that counts document reads. */
+class WrappedDocumentOverlayCache final : public DocumentOverlayCache {
+ public:
+  WrappedDocumentOverlayCache(DocumentOverlayCache* subject,
+                              CountingQueryEngine* query_engine)
+      : subject_(subject), query_engine_(query_engine) {
+  }
+
+  absl::optional<model::Overlay> GetOverlay(
+      const model::DocumentKey& key) const override;
+
+  void SaveOverlays(int largest_batch_id,
+                    const model::MutationByDocumentKeyMap& overlays) override;
+
+  void RemoveOverlaysForBatchId(int batch_id) override;
+
+  model::OverlayByDocumentKeyMap GetOverlays(
+      const model::ResourcePath& collection, int since_batch_id) const override;
+
+  model::OverlayByDocumentKeyMap GetOverlays(absl::string_view collection_group,
+                                             int since_batch_id,
+                                             std::size_t count) const override;
+
+ private:
+  int GetOverlayCount() const override;
+
+  DocumentOverlayCache* subject_ = nullptr;
   CountingQueryEngine* query_engine_ = nullptr;
 };
 

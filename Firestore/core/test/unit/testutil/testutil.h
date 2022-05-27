@@ -372,6 +372,13 @@ model::PatchMutation PatchMutation(
     std::vector<std::pair<std::string, model::TransformOperation>> transforms =
         {});
 
+model::PatchMutation PatchMutation(
+    absl::string_view path,
+    nanopb::Message<google_firestore_v1_Value> values,
+    const std::vector<model::FieldPath>& update_mask,
+    std::vector<std::pair<std::string, model::TransformOperation>> transforms =
+        {});
+
 model::PatchMutation MergeMutation(
     absl::string_view path,
     nanopb::Message<google_firestore_v1_Value> values,
@@ -459,6 +466,13 @@ model::FieldIndex MakeFieldIndex(const std::string& collection_group,
                                  model::Segment::Kind kind_1,
                                  const std::string& field_2,
                                  model::Segment::Kind kind_2);
+model::FieldIndex MakeFieldIndex(const std::string& collection_group,
+                                 const std::string& field_1,
+                                 model::Segment::Kind kind_1,
+                                 const std::string& field_2,
+                                 model::Segment::Kind kind_2,
+                                 const std::string& field_3,
+                                 model::Segment::Kind kind_3);
 model::FieldIndex MakeFieldIndex(const std::string& collection_group,
                                  int32_t index_id,
                                  model::IndexState state,
